@@ -1,11 +1,19 @@
 import cookieParser from "cookie-parser";
 import cors from "cors";
 import express from "express";
+import passport from "passport";
+import { configurePassport } from "./lib/passport.ts";
+import { errorHandler } from "./middleware/error-handler.ts";
+import { authRouter } from "./routes/auth.ts";
+import { organizationsRouter } from "./routes/organizations.ts";
 
 const frontendUrl = process.env.FRONTEND_URL ?? "http://localhost:3000";
 
+configurePassport();
+
 export const app = express();
 
+app.set("trust proxy", 1);
 app.use(express.json());
 
 // Production runs the frontend (Vercel) and this API (Render) on different
@@ -19,3 +27,7 @@ app.use(
 );
 
 app.use(cookieParser());
+app.use(passport.initialize());
+app.use("/api/auth", authRouter);
+app.use("/api/organizations", organizationsRouter);
+app.use(errorHandler);

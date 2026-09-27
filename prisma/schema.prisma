@@ -7,3 +7,156 @@ generator client {
 datasource db {
   provider = "postgresql"
 }
+
+enum ManagerRole {
+  OWNER
+  MANAGER
+}
+
+enum ShiftRequirementStatus {
+  DRAFT
+  COLLECTING
+  GENERATED
+  CONFIRMED
+}
+
+enum Weekday {
+  MON
+  TUE
+  WED
+  THU
+  FRI
+  SAT
+  SUN
+}
+
+enum ShiftType {
+  DAY
+  NIGHT
+}
+
+enum AssignmentStatus {
+  PROPOSED
+  CONFIRMED
+}
+
+model Organization {
+  id        String   @id @default(cuid())
+  name      String
+  slug      String   @unique
+  createdAt DateTime @default(now())
+
+  managers          ManagerUser[]
+  branches          Branch[]
+  shiftRequirements ShiftRequirement[]
+}
+
+/// organizationId stays null until onboarding creates the restaurant.
+/// Signup issues an account first; the organization is attached after.
+model ManagerUser {
+  id             String      @id @default(cuid())
+  organizationId String?
+  name           String
+  email          String      @unique
+  passwordHash   String?
+  googleId       String?     @unique
+  role           ManagerRole
+
+  organization Organization? @relation(fields: [organizationId], references: [id], onDelete: SetNull)
+
+  @@index([organizationId])
+}
+
+model Branch {
+  id             String @id @default(cuid())
+  organizationId String
+  name           String
+  address        String
+
+  organization       Organization         @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  shiftRequirements  ShiftRequirement[]
+  scheduleAssignments ScheduleAssignment[]
+
+  @@index([organizationId])
+}
+
+model ShiftRequirement {
+  id                     String                 @id @default(cuid())
+  organizationId         String
+  branchId               String
+  cycleLabel             String
+  weekdayDayRequired     Int
+  weekdayNightRequired   Int
+  weekendDayRequired     Int
+  weekendNightRequired   Int
+  requiredSeniorPerShift Int                    @default(1)
+  maxSeniorPerShift      Int                    @default(1)
+  /// Application-generated with nanoid, at least 21 characters.
+  linkToken              String                 @unique
+  status                 ShiftRequirementStatus @default(DRAFT)
+  createdAt              DateTime               @default(now())
+
+  organization Organization             @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  branch       Branch                   @relation(fields: [branchId], references: [id], onDelete: Restrict)
+  submissions  AvailabilitySubmission[]
+  assignments  ScheduleAssignment[]
+
+  @@index([organizationId])
+  @@index([branchId])
+}
+
+/// Workers have no account. Identity is workerName + employeeId, unique
+/// only inside one ShiftRequirement. A second submit with the same
+/// employeeId upserts this row.
+model AvailabilitySubmission {
+  id                 String   @id @default(cuid())
+  shiftRequirementId String
+  workerName         String
+  employeeId         String
+  submittedAt        DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  shiftRequirement ShiftRequirement    @relation(fields: [shiftRequirementId], references: [id], onDelete: Cascade)
+  entries          AvailabilityEntry[]
+
+  @@unique([shiftRequirementId, employeeId])
+  @@index([shiftRequirementId])
+}
+
+/// If endHour <= startHour, the window wraps past midnight (for example
+/// 18–06). Compare windows in absolute week-hours, not raw clock numbers:
+/// absHour = dayIndex * 24 + hour, duration = (endHour - startHour + 24) % 24.
+model AvailabilityEntry {
+  id                       String    @id @default(cuid())
+  availabilitySubmissionId String
+  day                      Weekday
+  shiftType                ShiftType
+  /// Hour of day, 0–23 inclusive.
+  startHour                Int
+  /// Hour of day, 0–23 inclusive. See the model comment for midnight wrap.
+  endHour                  Int
+
+  availabilitySubmission AvailabilitySubmission @relation(fields: [availabilitySubmissionId], references: [id], onDelete: Cascade)
+
+  @@index([availabilitySubmissionId])
+}
+
+/// workerName and employeeId are copied from the submission at generation
+/// time. Later edits to that submission must not rewrite a schedule that
+/// was already produced from it.
+model ScheduleAssignment {
+  id                 String           @id @default(cuid())
+  shiftRequirementId String
+  branchId           String
+  workerName         String
+  employeeId         String
+  day                Weekday
+  shiftType          ShiftType
+  status             AssignmentStatus
+
+  shiftRequirement ShiftRequirement @relation(fields: [shiftRequirementId], references: [id], onDelete: Cascade)
+  branch           Branch           @relation(fields: [branchId], references: [id], onDelete: Restrict)
+
+  @@index([shiftRequirementId])
+  @@index([branchId])
+}

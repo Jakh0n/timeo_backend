@@ -3,10 +3,19 @@ import { HttpError } from "../lib/http-error.ts";
 import { requireAuth } from "../middleware/require-auth.ts";
 import { generateShiftRequirement } from "../services/generate-schedule-service.ts";
 import {
+  addScheduleAssignment,
+  confirmSchedule,
+  getScheduleBoard,
+  removeScheduleAssignment,
+  reopenSchedule,
+} from "../services/schedule-board-service.ts";
+import {
   createShiftRequirement,
   getShiftRequirement,
   listShiftRequirements,
+  listSubmissions,
   startCollecting,
+  updateShiftRequirement,
 } from "../services/shift-requirement-service.ts";
 
 export const shiftRequirementsRouter = Router();
@@ -25,6 +34,14 @@ function organizationId(requestOrganizationId: string | null | undefined): strin
 function requirementId(value: string | undefined): string {
   if (!value) {
     throw new HttpError(400, "That shift requirement was not found.");
+  }
+
+  return value;
+}
+
+function assignmentId(value: string | undefined): string {
+  if (!value) {
+    throw new HttpError(400, "That assignment was not found.");
   }
 
   return value;
@@ -50,6 +67,96 @@ shiftRequirementsRouter.post("/", async (request, response, next) => {
       request.body,
     );
     response.status(201).json(requirement);
+  } catch (error) {
+    next(error);
+  }
+});
+
+shiftRequirementsRouter.patch("/:id", async (request, response, next) => {
+  try {
+    const requirement = await updateShiftRequirement(
+      organizationId(request.manager?.organizationId),
+      requirementId(request.params.id),
+      request.body,
+    );
+    response.json(requirement);
+  } catch (error) {
+    next(error);
+  }
+});
+
+shiftRequirementsRouter.get("/:id/submissions", async (request, response, next) => {
+  try {
+    const submissions = await listSubmissions(
+      organizationId(request.manager?.organizationId),
+      requirementId(request.params.id),
+    );
+    response.json(submissions);
+  } catch (error) {
+    next(error);
+  }
+});
+
+shiftRequirementsRouter.get("/:id/schedule", async (request, response, next) => {
+  try {
+    const slots = await getScheduleBoard(
+      organizationId(request.manager?.organizationId),
+      requirementId(request.params.id),
+    );
+    response.json(slots);
+  } catch (error) {
+    next(error);
+  }
+});
+
+shiftRequirementsRouter.post("/:id/assignments", async (request, response, next) => {
+  try {
+    const slots = await addScheduleAssignment(
+      organizationId(request.manager?.organizationId),
+      requirementId(request.params.id),
+      request.body,
+    );
+    response.status(201).json(slots);
+  } catch (error) {
+    next(error);
+  }
+});
+
+shiftRequirementsRouter.delete(
+  "/:id/assignments/:assignmentId",
+  async (request, response, next) => {
+    try {
+      const slots = await removeScheduleAssignment(
+        organizationId(request.manager?.organizationId),
+        requirementId(request.params.id),
+        assignmentId(request.params.assignmentId),
+      );
+      response.json(slots);
+    } catch (error) {
+      next(error);
+    }
+  },
+);
+
+shiftRequirementsRouter.post("/:id/confirm", async (request, response, next) => {
+  try {
+    const requirement = await confirmSchedule(
+      organizationId(request.manager?.organizationId),
+      requirementId(request.params.id),
+    );
+    response.json(requirement);
+  } catch (error) {
+    next(error);
+  }
+});
+
+shiftRequirementsRouter.post("/:id/reopen", async (request, response, next) => {
+  try {
+    const requirement = await reopenSchedule(
+      organizationId(request.manager?.organizationId),
+      requirementId(request.params.id),
+    );
+    response.json(requirement);
   } catch (error) {
     next(error);
   }

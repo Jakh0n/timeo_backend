@@ -270,6 +270,83 @@ export async function createShiftRequirement(
   throw new HttpError(500, "Something went wrong. Try again.");
 }
 
+export async function updateShiftRequirement(
+  organizationId: string,
+  requirementId: string,
+  body: unknown,
+): Promise<ShiftRequirementDetail> {
+  const current = await findInOrganization(organizationId, requirementId);
+
+  if (current.status !== ShiftRequirementStatus.DRAFT) {
+    throw new HttpError(400, "You can edit the setup while this schedule is still a draft.");
+  }
+
+  const input = readCreateInput(body);
+  const branch = await prisma.branch.findFirst({
+    where: { id: input.branchId, organizationId },
+    select: { id: true },
+  });
+
+  if (!branch) {
+    throw new HttpError(400, "Choose a branch from this restaurant.");
+  }
+
+  const requirement = await prisma.shiftRequirement.update({
+    where: { id: current.id },
+    data: {
+      branchId: branch.id,
+      cycleLabel: input.cycleLabel,
+      weekdayDayRequired: input.weekdayDayRequired,
+      weekdayNightRequired: input.weekdayNightRequired,
+      weekendDayRequired: input.weekendDayRequired,
+      weekendNightRequired: input.weekendNightRequired,
+      requiredSeniorPerShift: input.requiredSeniorPerShift,
+      maxSeniorPerShift: input.maxSeniorPerShift,
+    },
+    include: requirementInclude,
+  });
+
+  return toDetail(requirement);
+}
+
+export type SubmissionListItem = {
+  workerName: string;
+  employeeId: string;
+  submittedAt: string;
+};
+
+export async function listSubmissions(
+  organizationId: string,
+  requirementId: string,
+): Promise<{ count: number; submissions: SubmissionListItem[] }> {
+  const requirement = await prisma.shiftRequirement.findFirst({
+    where: { id: requirementId, organizationId },
+    select: {
+      submissions: {
+        orderBy: { submittedAt: "desc" },
+        select: {
+          workerName: true,
+          employeeId: true,
+          submittedAt: true,
+        },
+      },
+    },
+  });
+
+  if (!requirement) {
+    throw new HttpError(404, "That shift requirement was not found.");
+  }
+
+  return {
+    count: requirement.submissions.length,
+    submissions: requirement.submissions.map((submission) => ({
+      workerName: submission.workerName,
+      employeeId: submission.employeeId,
+      submittedAt: submission.submittedAt.toISOString(),
+    })),
+  };
+}
+
 export async function startCollecting(
   organizationId: string,
   requirementId: string,

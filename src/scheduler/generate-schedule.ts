@@ -11,7 +11,7 @@ import type {
   UnfilledSlot,
 } from "./types.ts";
 
-function toWorkers(
+export function toSolverWorkers(
   branchId: string,
   submissions: ScheduleSubmission[],
 ): SolverWorker[] {
@@ -75,6 +75,17 @@ function unfilledReason(
   return "Not enough people could be scheduled without overlapping another shift.";
 }
 
+export function coverageReason(
+  shift: SolverShift,
+  workers: SolverWorker[],
+): string {
+  const windowsByWorker = new Map(
+    workers.map((worker) => [worker.id, availAbsRange(worker.availability)]),
+  );
+
+  return unfilledReason(shift, workers, windowsByWorker);
+}
+
 function listUnfilled(
   shifts: SolverShift[],
   workers: SolverWorker[],
@@ -109,7 +120,7 @@ export async function generateSchedule(
   submissions: ScheduleSubmission[],
 ): Promise<GenerateScheduleResult> {
   const shifts = expandShiftSlots(shiftRequirement);
-  const workers = toWorkers(shiftRequirement.branchId, submissions);
+  const workers = toSolverWorkers(shiftRequirement.branchId, submissions);
 
   if (shifts.length === 0) {
     return { status: "ok", assignments: [], unfilledSlots: [] };

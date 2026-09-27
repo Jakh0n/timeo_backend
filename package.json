@@ -17,6 +17,7 @@
     "dotenv": "^18.0.4",
     "express": "^5.2.1",
     "express-rate-limit": "^8.7.0",
+    "highs": "^1.15.3",
     "jsonwebtoken": "^9.0.3",
     "nanoid": "^6.0.1",
     "passport": "^0.7.0",

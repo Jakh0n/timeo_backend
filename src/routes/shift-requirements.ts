@@ -1,6 +1,7 @@
 import { Router } from "express";
 import { HttpError } from "../lib/http-error.ts";
 import { requireAuth } from "../middleware/require-auth.ts";
+import { generateShiftRequirement } from "../services/generate-schedule-service.ts";
 import {
   createShiftRequirement,
   getShiftRequirement,
@@ -61,6 +62,18 @@ shiftRequirementsRouter.get("/:id", async (request, response, next) => {
       requirementId(request.params.id),
     );
     response.json(requirement);
+  } catch (error) {
+    next(error);
+  }
+});
+
+shiftRequirementsRouter.post("/:id/generate", async (request, response, next) => {
+  try {
+    const result = await generateShiftRequirement(
+      organizationId(request.manager?.organizationId),
+      requirementId(request.params.id),
+    );
+    response.json(result);
   } catch (error) {
     next(error);
   }

@@ -5,6 +5,7 @@ import passport from "passport";
 import { configurePassport } from "./lib/passport.ts";
 import { errorHandler } from "./middleware/error-handler.ts";
 import { authRouter } from "./routes/auth.ts";
+import { dashboardRouter } from "./routes/dashboard.ts";
 import { organizationsRouter } from "./routes/organizations.ts";
 
 const frontendUrl = process.env.FRONTEND_URL ?? "http://localhost:3000";
@@ -30,4 +31,5 @@ app.use(cookieParser());
 app.use(passport.initialize());
 app.use("/api/auth", authRouter);
 app.use("/api/organizations", organizationsRouter);
+app.use("/api/dashboard", dashboardRouter);
 app.use(errorHandler);

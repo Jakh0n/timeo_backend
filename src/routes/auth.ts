@@ -2,12 +2,12 @@ import { Router } from "express";
 import rateLimit from "express-rate-limit";
 import passport from "passport";
 import { setAuthCookie, clearAuthCookie } from "../lib/auth-cookie.ts";
-import { toAuthUser } from "../lib/auth-user.ts";
 import { signAuthToken } from "../lib/jwt.ts";
 import { googleAuthConfigured } from "../lib/passport.ts";
 import { HttpError } from "../lib/http-error.ts";
 import { requireAuth } from "../middleware/require-auth.ts";
 import {
+  getManagerSession,
   loginManager,
   parseLoginBody,
   parseSignupBody,
@@ -87,18 +87,24 @@ authRouter.get(
     }
 
     setAuthCookie(response, signAuthToken(user.id));
-    const destination = user.organizationId ? "/dashboard" : "/onboarding";
+    const destination = user.organizationId
+      ? "/manager/dashboard"
+      : "/onboarding";
     response.redirect(302, `${frontendUrl()}${destination}`);
   },
 );
 
-authRouter.get("/me", requireAuth, (request, response) => {
-  if (!request.manager) {
-    response.status(401).json({ message: "You need to log in." });
-    return;
-  }
+authRouter.get("/me", requireAuth, async (request, response, next) => {
+  try {
+    if (!request.manager) {
+      response.status(401).json({ message: "You need to log in." });
+      return;
+    }
 
-  response.json(toAuthUser(request.manager));
+    response.json(await getManagerSession(request.manager));
+  } catch (error) {
+    next(error);
+  }
 });
 
 authRouter.post("/logout", (request, response) => {

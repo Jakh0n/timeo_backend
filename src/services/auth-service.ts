@@ -78,6 +78,29 @@ export function parseLoginBody(body: unknown): Credentials {
   };
 }
 
+export type ManagerSession = AuthUser & {
+  organization: {
+    id: string;
+    name: string;
+  } | null;
+};
+
+export async function getManagerSession(
+  user: ManagerUser,
+): Promise<ManagerSession> {
+  const organization = user.organizationId
+    ? await prisma.organization.findUnique({
+        where: { id: user.organizationId },
+        select: { id: true, name: true },
+      })
+    : null;
+
+  return {
+    ...toAuthUser(user),
+    organization,
+  };
+}
+
 export async function signupManager(input: SignupInput): Promise<AuthUser> {
   const existing = await prisma.managerUser.findUnique({
     where: { email: input.email },

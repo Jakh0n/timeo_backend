@@ -8,6 +8,7 @@ import { authRouter } from "./routes/auth.ts";
 import { branchesRouter } from "./routes/branches.ts";
 import { dashboardRouter } from "./routes/dashboard.ts";
 import { organizationsRouter } from "./routes/organizations.ts";
+import { publicShiftRequirementsRouter } from "./routes/public-shift-requirements.ts";
 import { shiftRequirementsRouter } from "./routes/shift-requirements.ts";
 
 const frontendUrl = process.env.FRONTEND_URL ?? "http://localhost:3000";
@@ -36,4 +37,5 @@ app.use("/api/organizations", organizationsRouter);
 app.use("/api/dashboard", dashboardRouter);
 app.use("/api/branches", branchesRouter);
 app.use("/api/shift-requirements", shiftRequirementsRouter);
+app.use("/api/public/shift-requirements", publicShiftRequirementsRouter);
 app.use(errorHandler);
